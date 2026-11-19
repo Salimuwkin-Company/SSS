@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>МДМА: Миф или факт? — игра</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0820; --bg2:#1a1040; --ink:#f4f1ff; --muted:#a69fd0;
+    --fact:#22d3a6; --myth:#ff4d7d; --gold:#ffd34d; --violet:#8b5cf6; --card:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Manrope,system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(1200px 700px at 15% 0%,#3b1d8f 0%,transparent 60%),
+               radial-gradient(900px 600px at 100% 100%,#7a1d5c 0%,transparent 55%),var(--bg);
+    overflow:hidden;min-height:100vh;
+  }
+  canvas#bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:22px 18px 30px;min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .logo{font-family:Unbounded;font-weight:900;font-size:clamp(18px,3.4vw,26px);letter-spacing:.5px}
+  .logo span{background:linear-gradient(90deg,var(--fact),var(--violet),var(--myth));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hud{display:flex;gap:8px}
+  .pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);padding:7px 12px;border-radius:999px;font-weight:800;font-size:14px;white-space:nowrap}
+  .pill b{color:var(--gold)}
+  .progress{height:8px;border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:18px}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--fact),var(--violet),var(--myth));transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+  .screen{width:100%;text-align:center;animation:pop .5s cubic-bezier(.2,.9,.3,1.3)}
+  @keyframes pop{from{opacity:0;transform:scale(.9) translateY(20px)}to{opacity:1;transform:none}}
+  h1{font-family:Unbounded;font-weight:900;font-size:clamp(30px,7vw,58px);line-height:1.05;margin:10px 0 14px}
+  h1 em{font-style:normal;color:var(--fact)} h1 s{text-decoration:none;color:var(--myth)}
+  .lead{color:var(--muted);font-size:clamp(15px,2.4vw,18px);max-width:560px;margin:0 auto 26px;line-height:1.5}
+  .btn{font-family:Unbounded;font-weight:700;border:0;cursor:pointer;color:#120a2e;font-size:16px;padding:16px 28px;border-radius:16px;
+       background:linear-gradient(135deg,var(--gold),#ff9f43);box-shadow:0 10px 30px rgba(255,180,60,.35);transition:transform .15s}
+  .btn:hover{transform:translateY(-2px) scale(1.03)} .btn:active{transform:scale(.97)}
+  .rules{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:0 0 26px}
+  .rules div{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 14px;font-size:14px;color:var(--muted)}
+  .rules b{color:var(--ink)}
+
+  /* Card */
+  .deck{position:relative;width:min(560px,100%);height:340px;margin:0 auto}
+  .card{position:absolute;inset:0;background:var(--card);color:#1b1440;border-radius:26px;padding:26px 26px 22px;display:flex;flex-direction:column;
+        box-shadow:0 25px 60px rgba(0,0,0,.45);touch-action:none;user-select:none;cursor:grab;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s}
+  .card.shadow{transform:translateY(14px) scale(.95) rotate(-2deg);opacity:.35;cursor:default}
+  .card .tag{align-self:flex-start;font-family:Unbounded;font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;
+             background:#efeaff;color:var(--violet);padding:6px 10px;border-radius:999px}
+  .card .q{flex:1;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(19px,3.4vw,25px);line-height:1.35;text-align:center;padding:10px 4px}
+  .card .stamp{position:absolute;top:28px;font-family:Unbounded;font-weight:900;font-size:30px;padding:6px 14px;border:4px solid;border-radius:12px;opacity:0;transform:rotate(-14deg)}
+  .card .stamp.f{right:24px;color:var(--fact);border-color:var(--fact)}
+  .card .stamp.m{left:24px;color:var(--myth);border-color:var(--myth);transform:rotate(14deg)}
+  .timer{height:6px;background:#eee8ff;border-radius:6px;overflow:hidden}
+  .timer i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--fact),var(--gold),var(--myth))}
+  .hint{font-size:13px;color:#7b72a8;text-align:center;margin-top:10px}
+  .choices{display:flex;gap:14px;justify-content:center;margin-top:24px}
+  .choice{font-family:Unbounded;font-weight:900;font-size:18px;border:0;cursor:pointer;padding:18px 0;width:min(220px,44vw);border-radius:18px;color:#fff;transition:transform .15s,box-shadow .2s}
+  .choice:hover{transform:translateY(-3px)}
+  .choice.myth{background:linear-gradient(135deg,#ff4d7d,#d9205a);box-shadow:0 10px 30px rgba(255,77,125,.35)}
+  .choice.fact{background:linear-gradient(135deg,#22d3a6,#0ea37a);box-shadow:0 10px 30px rgba(34,211,166,.35)}
+  .choice:disabled{opacity:.4;cursor:default;transform:none}
+
+  /* Reveal */
+  .reveal{position:absolute;inset:0;border-radius:26px;padding:24px;display:flex;flex-direction:column;justify-content:center;text-align:left;color:#fff;
+          animation:flip .55s cubic-bezier(.2,.9,.3,1.2)}
+  @keyframes flip{from{transform:rotateY(90deg) scale(.9);opacity:0}to{transform:none;opacity:1}}
+  .reveal.ok{background:linear-gradient(160deg,#0fb58a,#0a6e58)}
+  .reveal.bad{background:linear-gradient(160deg,#ff4d7d,#8a1440)}
+  .reveal .verdict{font-family:Unbounded;font-weight:900;font-size:clamp(22px,4.5vw,32px);margin-bottom:6px}
+  .reveal .answer{font-weight:800;opacity:.9;margin-bottom:12px;font-size:15px;text-transform:uppercase;letter-spacing:.6px}
+  .reveal p{font-size:clamp(15px,2.6vw,17px);line-height:1.5}
+  .reveal .src{margin-top:12px;font-size:12px;opacity:.75}
+  .next{margin-top:22px}
+  .shake{animation:shake .45s}
+  @keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+  .float{position:fixed;font-family:Unbounded;font-weight:900;font-size:28px;pointer-events:none;z-index:5;animation:up 1s ease-out forwards}
+  @keyframes up{to{transform:translateY(-90px) scale(1.4);opacity:0}}
+
+  /* Result */
+  .big{font-family:Unbounded;font-weight:900;font-size:clamp(60px,14vw,110px);line-height:1;background:linear-gradient(90deg,var(--gold),var(--myth));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .rank{font-family:Unbounded;font-weight:700;font-size:clamp(20px,4vw,28px);margin:8px 0 8px}
+  .review{max-width:560px;margin:20px auto 24px;text-align:left;display:grid;gap:8px;max-height:34vh;overflow:auto;padding-right:6px}
+  .review div{background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+  .review div span{flex:none}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:16px;line-height:1.5}
+  @media (max-height:700px){.deck{height:300px}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="wrap">
+  <header>
+    <div class="logo"><span>МИФ</span> или <span>ФАКТ</span></div>
+    <div class="hud" id="hud" hidden>
+      <div class="pill">Очки <b id="score">0</b></div>
+      <div class="pill">🔥 <b id="streak">0</b></div>
+      <div class="pill"><b id="num">1</b>/<span id="total">12</span></div>
+    </div>
+  </header>
+  <div class="progress" id="prog" hidden><i id="bar"></i></div>
+  <div class="stage" id="stage"></div>
+  <footer>Учебная игра к презентации «МДМА (экстази): вещество, организм, закон» · курс гражданского права КР</footer>
+</div>
+
+<script>
+const Q = [
+  {t:"История", q:"МДМА впервые синтезировали в 1912 году в немецкой фармацевтической компании Merck.", a:true,
+   e:"Факт. Вещество получили в лаборатории Merck; патент выдан в 1914 году.", s:"История фармакологии"},
+  {t:"История", q:"МДМА с самого начала создавали как «таблетку для вечеринок».", a:false,
+   e:"Миф. МДМА был промежуточным продуктом при поиске кровоостанавливающего средства (метилгидрастинина). Как клубный наркотик он распространился лишь в 1980-х.", s:"Патент Merck, 1914"},
+  {t:"История", q:"Химик Александр Шульгин в 1970-х привлёк внимание учёных и психотерапевтов к МДМА.", a:true,
+   e:"Факт. Шульгин описал его действие и познакомил с ним психотерапевтов; после роста уличного употребления в 1985 г. МДМА запретили в США.", s:"История вещества"},
+  {t:"Фармакология", q:"Главный механизм действия МДМА — резкий выброс серотонина в мозге.", a:true,
+   e:"Факт. МДМА заставляет нейроны массово выбрасывать серотонин (а также дофамин и норадреналин). Запасы серотонина истощаются — отсюда «откат».", s:"Нейробиология"},
+  {t:"Организм", q:"Самая опасная острая реакция на экстази — перегрев организма (гипертермия).", a:true,
+   e:"Факт. Температура тела может подняться до опасных значений, особенно в жарком клубе при долгих танцах. Это приводит к разрушению мышц, отказу почек и смерти.", s:"Токсикология"},
+  {t:"Организм", q:"Если пить очень много воды, экстази становится безопасным.", a:false,
+   e:"Миф. Чрезмерное питьё на фоне МДМА (он задерживает воду в организме) вызывает гипонатриемию — «водное отравление», отёк мозга. Безопасной дозы наркотика не существует.", s:"Токсикология"},
+  {t:"Организм", q:"Через 1–3 дня после приёма часто наступает упадок настроения, тревога и бессонница.", a:true,
+   e:"Факт. Это следствие истощения серотонина. При регулярном употреблении возникают проблемы с памятью, сном и депрессия.", s:"Клинические данные"},
+  {t:"Уличный оборот", q:"Таблетка, которую продают как «экстази», всегда содержит чистый МДМА.", a:false,
+   e:"Миф. Уличные таблетки часто содержат примеси или совсем другие вещества (PMA, синтетические катиноны), которые бывают ещё опаснее. Состав по виду не определить.", s:"Анализы изъятых таблеток"},
+  {t:"Медицина", q:"В США МДМА-терапия посттравматического расстройства уже одобрена и доступна по рецепту.", a:false,
+   e:"Миф. В августе 2024 г. FDA отказало в одобрении. В 2026 г. заявку подали повторно, но решения об одобрении нет. Это всё ещё эксперимент.", s:"FDA, 2024–2026"},
+  {t:"Закон КР", q:"В Кыргызстане МДМА можно легально получить в аптеке по рецепту врача.", a:false,
+   e:"Миф. МДМА входит в Список I психотропных веществ: запрещён к применению на людях, не может использоваться и регистрироваться в медицине (Закон КР № 69 от 06.03.2024).", s:"Закон КР № 69"},
+  {t:"Закон КР", q:"Перечень наркотических и психотропных веществ в КР утверждает Кабинет министров.", a:true,
+   e:"Факт. Действующий перечень утверждён постановлением Кабинета министров КР от 26 марта 2025 г. № 152 и регулярно дополняется.", s:"Ст. 5 Закона КР № 69"},
+  {t:"Закон КР", q:"Изготовление, приобретение и хранение наркотика «для себя» в КР — не наказуемо.", a:false,
+   e:"Миф. Даже без цели сбыта это преступление (ст. 283 УК КР), а в небольших размерах — правонарушение (ст. 96 Кодекса о правонарушениях). Сбыт — ст. 282 УК КР, реклама и склонение — ст. 287 УК КР.", s:"УК КР 2021, Кодекс о правонарушениях"}
+];
+
+const stage=document.getElementById('stage');
+const $=id=>document.getElementById(id);
+let order=[],i=0,score=0,streak=0,best=0,log=[],timer=null,tLeft=0,locked=false;
+const TIME=15;
+
+/* ---------- tiny sound (only after user click) ---------- */
+let ac=null;
+function beep(ok){
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.type=ok?'triangle':'sawtooth';
+    o.frequency.setValueAtTime(ok?520:220,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(ok?1040:110,ac.currentTime+.18);
+    g.gain.setValueAtTime(.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.3);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+.3);
+  }catch(e){}
+}
+
+function start(){
+  order=Q.map((_,k)=>k).sort(()=>Math.random()-.5);
+  i=0;score=0;streak=0;best=0;log=[];
+  $('hud').hidden=false;$('prog').hidden=false;$('total').textContent=Q.length;
+  render();
+}
+
+function intro(){
+  $('hud').hidden=true;$('prog').hidden=true;
+  stage.innerHTML=`<div class="screen">
+    <div style="font-size:54px;animation:spin 6s linear infinite;display:inline-block">💊</div>
+    <h1>МДМА:<br><s>миф</s> или <em>факт</em>?</h1>
+    <p class="lead">12 утверждений об истории, действии на организм и законе Кыргызстана. Угадайте, где правда, а где опасное заблуждение.</p>
+    <div class="rules">
+      <div>⏱ <b>15 секунд</b> на ответ</div>
+      <div>🔥 серия = <b>бонус</b></div>
+      <div>👆 свайп или ← →</div>
+    </div>
+    <button class="btn" id="go">Начать игру</button>
+  </div>`;
+  $('go').onclick=start;
+}
+
+function render(){
+  locked=false;
+  const q=Q[order[i]];
+  $('num').textContent=i+1;$('score').textContent=score;$('streak').textContent=streak;
+  $('bar').style.width=(i/Q.length*100)+'%';
+  stage.innerHTML=`<div class="screen">
+    <div class="deck" id="deck">
+      ${i<Q.length-1?'<div class="card shadow"></div>':''}
+      <div class="card" id="card">
+        <div class="stamp f">ФАКТ</div><div class="stamp m">МИФ</div>
+        <div class="tag">${q.t}</div>
+        <div class="q">${q.q}</div>
+        <div class="timer"><i id="tbar"></i></div>
+        <div class="hint">Перетащите карточку влево (миф) или вправо (факт)</div>
+      </div>
+    </div>
+    <div class="choices">
+      <button class="choice myth" id="bm">← МИФ</button>
+      <button class="choice fact" id="bf">ФАКТ →</button>
+    </div>
+  </div>`;
+  $('bm').onclick=()=>answer(false);
+  $('bf').onclick=()=>answer(true);
+  drag($('card'));
+  tLeft=TIME;clearInterval(timer);
+  const tb=$('tbar');
+  timer=setInterval(()=>{
+    tLeft-=.1;tb.style.width=Math.max(0,tLeft/TIME*100)+'%';
+    if(tLeft<=0){clearInterval(timer);answer(null);}
+  },100);
+}
+
+function drag(card){
+  let x0=null,dx=0;
+  const sf=card.querySelector('.stamp.f'),sm=card.querySelector('.stamp.m');
+  card.addEventListener('pointerdown',e=>{if(locked)return;x0=e.clientX;card.setPointerCapture(e.pointerId);card.style.transition='none'});
+  card.addEventListener('pointermove',e=>{
+    if(x0===null)return;dx=e.clientX-x0;
+    card.style.transform=`translateX(${dx}px) rotate(${dx/18}deg)`;
+    sf.style.opacity=Math.max(0,dx/120);sm.style.opacity=Math.max(0,-dx/120);
+  });
+  const end=()=>{
+    if(x0===null)return;x0=null;card.style.transition='';
+    if(Math.abs(dx)>110){answer(dx>0)}else{card.style.transform='';sf.style.opacity=0;sm.style.opacity=0}
+    dx=0;
+  };
+  card.addEventListener('pointerup',end);card.addEventListener('pointercancel',end);
+}
+
+function answer(v){
+  if(locked)return;locked=true;clearInterval(timer);
+  const q=Q[order[i]];const ok=v===q.a;const card=$('card');
+  $('bm').disabled=true;$('bf').disabled=true;
+  if(v!==null){
+    card.style.transform=`translateX(${v?420:-420}px) rotate(${v?25:-25}deg)`;card.style.opacity=0;
+  }
+  let gained=0;
+  if(ok){streak++;best=Math.max(best,streak);gained=100+Math.round(tLeft*10)+(streak>1?streak*20:0);score+=gained;}
+  else{streak=0;}
+  log.push({q:q.q,ok,a:q.a});
+  beep(ok);
+  if(ok){burst(40);floatText('+'+gained,'#ffd34d')} else {floatText(v===null?'⏱ Время!':'✗','#ff4d7d')}
+  setTimeout(()=>{
+    const deck=$('deck');
+    deck.innerHTML=`<div class="reveal ${ok?'ok':'bad'}">
+      <div class="verdict">${ok?(streak>2?'🔥 Серия '+streak+'!':'✓ Верно!'):(v===null?'⏱ Время вышло':'✗ Мимо!')}</div>
+      <div class="answer">Правильный ответ: ${q.a?'факт':'миф'}</div>
+      <p>${q.e}</p>
+      <div class="src">Источник: ${q.s}</div>
+    </div>`;
+    if(!ok)deck.classList.add('shake');
+    $('score').textContent=score;$('streak').textContent=streak;
+    const ch=document.querySelector('.choices');
+    ch.innerHTML=`<button class="btn next" id="nx">${i<Q.length-1?'Дальше →':'Результат 🏆'}</button>`;
+    $('nx').onclick=()=>{i++; i<Q.length?render():result()};
+    $('nx').focus();
+  },v===null?150:330);
+}
+
+function result(){
+  $('bar').style.width='100%';
+  const right=log.filter(l=>l.ok).length;
+  const ranks=[[11,'🏆 Эксперт-нарколог'],[9,'🎓 Отличник юрфака'],[7,'📚 Хорошая база'],[4,'🤔 Есть пробелы'],[0,'🚨 Срочно на лекцию!']];
+  const r=ranks.find(x=>right>=x[0])[1];
+  stage.innerHTML=`<div class="screen">
+    <div class="big" id="cnt">0</div>
+    <div class="rank">${r}</div>
+    <p class="lead" style="margin-bottom:0">Верных ответов: <b style="color:#fff">${right} из ${Q.length}</b> · лучшая серия: <b style="color:#fff">${best}</b></p>
+    <div class="review">${log.map(l=>`<div><span>${l.ok?'✅':'❌'}</span><span>${l.q} <b style="color:${l.a?'var(--fact)':'var(--myth)'}">— ${l.a?'факт':'миф'}</b></span></div>`).join('')}</div>
+    <button class="btn" id="again">Сыграть ещё раз</button>
+  </div>`;
+  let n=0;const step=Math.max(1,Math.round(score/60));
+  const c=setInterval(()=>{n=Math.min(score,n+step);$('cnt').textContent=n;if(n>=score)clearInterval(c)},16);
+  if(right>=7)setTimeout(()=>burst(160),300);
+  $('again').onclick=start;
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'&&$('bm')&&!locked)answer(false);
+  if(e.key==='ArrowRight'&&$('bf')&&!locked)answer(true);
+});
+
+/* ---------- animated background: floating molecules + confetti ---------- */
+const cv=$('bg'),cx=cv.getContext('2d');let W,H,parts=[],conf=[];
+function rs(){W=cv.width=innerWidth*devicePixelRatio;H=cv.height=innerHeight*devicePixelRatio}
+addEventListener('resize',rs);rs();
+for(let k=0;k<16;k++)parts.push({x:Math.random()*W,y:Math.random()*H,r:(10+Math.random()*22)*devicePixelRatio,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,a:Math.random()*6,va:(Math.random()-.5)*.004,h:[160,265,340][k%3]});
+function hex(x,y,r,a){cx.beginPath();for(let k=0;k<6;k++){const t=a+k*Math.PI/3;cx.lineTo(x+r*Math.cos(t),y+r*Math.sin(t))}cx.closePath();cx.stroke()}
+function burst(n){
+  for(let k=0;k<n;k++)conf.push({x:W/2,y:H*.45,vx:(Math.random()-.5)*22*devicePixelRatio,vy:(-Math.random()*18-4)*devicePixelRatio,s:(5+Math.random()*6)*devicePixelRatio,c:['#22d3a6','#ff4d7d','#ffd34d','#8b5cf6','#fff'][k%5],r:Math.random()*6,life:90});
+}
+function floatText(t,c){const d=document.createElement('div');d.className='float';d.textContent=t;d.style.color=c;d.style.left='50%';d.style.top='42%';d.style.transform='translateX(-50%)';document.body.appendChild(d);setTimeout(()=>d.remove(),1000)}
+function loop(){
+  cx.clearRect(0,0,W,H);
+  for(const p of parts){
+    p.x+=p.vx;p.y+=p.vy;p.a+=p.va;
+    if(p.x<-50)p.x=W+50;if(p.x>W+50)p.x=-50;if(p.y<-50)p.y=H+50;if(p.y>H+50)p.y=-50;
+    cx.strokeStyle=`hsla(${p.h},90%,70%,.22)`;cx.lineWidth=2*devicePixelRatio;
+    hex(p.x,p.y,p.r,p.a);
+    cx.beginPath();cx.moveTo(p.x+p.r*Math.cos(p.a),p.y+p.r*Math.sin(p.a));cx.lineTo(p.x+p.r*2*Math.cos(p.a),p.y+p.r*2*Math.sin(p.a));cx.stroke();
+  }
+  conf=conf.filter(c=>c.life-->0);
+  for(const c of conf){c.vy+=.6*devicePixelRatio;c.x+=c.vx;c.y+=c.vy;c.vx*=.98;c.r+=.2;cx.save();cx.translate(c.x,c.y);cx.rotate(c.r);cx.fillStyle=c.c;cx.globalAlpha=Math.min(1,c.life/30);cx.fillRect(-c.s/2,-c.s/4,c.s,c.s/2);cx.restore()}
+  requestAnimationFrame(loop);
+}
+const st=document.createElement('style');st.textContent='@keyframes spin{to{transform:rotate(360deg)}}';document.head.appendChild(st);
+loop();intro();
+</script>
+</body>
+</html>
